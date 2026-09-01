@@ -1,0 +1,32 @@
+{
+  "kind": "collectionType",
+  "collectionName": "staff_members",
+  "info": {
+    "singularName": "staff",
+    "pluralName": "staff-members",
+    "displayName": "Staff",
+    "description": "Salon staff members"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "specialty": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "text"
+    }
+  }
+}

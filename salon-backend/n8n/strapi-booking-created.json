@@ -1,0 +1,217 @@
+{
+  "name": "Strapi Booking Created → Slack & Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "strapi-booking-created",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "9f32a34b-745a-446c-b68e-5ee57dd1d8f0",
+      "name": "Strapi Booking Created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        260,
+        300
+      ],
+      "webhookId": "b6b50ecf-b11b-4847-bc06-1fef58b11fd1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n Webhook puts the POST payload in `body`; manual tests may provide it directly.\nconst request = $input.first().json;\nconst payload = request.body ?? request;\n\n// Discard only events Strapi explicitly identifies as a non-Booking model.\n// Some Strapi webhook payloads omit the model field entirely.\nconst model = String(payload.model ?? payload.contentType ?? '').toLowerCase();\nif (model && !['booking', 'bookings', 'api::booking.booking'].includes(model)) {\n  return [];\n}\n\nconst entry = payload.entry?.attributes ?? payload.entry ?? payload.data?.attributes ?? payload.data ?? payload;\n\n// Do not append a misleading row containing only the fallback status.\nif (!entry || !entry.customerName || !entry.phone || !entry.email || !entry.date || !entry.time) {\n  throw new Error('Booking data was not found in the Strapi webhook body. Check the Webhook node input.');\n}\n\n// Google Sheets cells need scalar values. Prefer the relation's display name,\n// while keeping the ID as a safe fallback if the webhook was not populated.\nconst relationValue = (value) => {\n  if (value === null || value === undefined) return '';\n  if (typeof value === 'string' || typeof value === 'number') return String(value);\n\n  const relation = value.data ?? value;\n  const attributes = relation.attributes ?? relation;\n  return String(\n    attributes.name ??\n      attributes.title ??\n      attributes.username ??\n      attributes.documentId ??\n      attributes.id ??\n      ''\n  );\n};\n\n// These property names must exactly match row 1 of the Bookings sheet.\nreturn [\n  {\n    json: {\n      bookingId: String(entry.documentId ?? entry.id ?? ''),\n      customerName: String(entry.customerName),\n      phone: String(entry.phone),\n      email: String(entry.email),\n      date: String(entry.date),\n      time: String(entry.time),\n      service: relationValue(entry.service),\n      staff: relationValue(entry.staff),\n      status: String(entry.status ?? 'pending')\n    }\n  }\n];"
+      },
+      "id": "e5c0d5b4-9d65-4d91-84e8-a5b9746dc65c",
+      "name": "Extract Booking Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "accessToken",
+        "resource": "message",
+        "operation": "sendAndWait",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SLACK_CHANNEL_ID",
+          "mode": "id"
+        },
+        "subject": "New booking awaiting confirmation",
+        "message": "=Customer: {{$json.customerName}}\\nService: {{$json.service}} with {{$json.staff}}\\nWhen: {{$json.date}} at {{$json.time}}\\nPhone: {{$json.phone}}\\nBooking ID: {{$json.bookingId}}",
+        "responseType": "approval",
+        "approvalOptions": {
+          "values": {
+            "approvalType": "double",
+            "approveLabel": "Confirm booking",
+            "buttonApprovalStyle": "primary",
+            "disapproveLabel": "Cancel booking",
+            "buttonDisapprovalStyle": "secondary"
+          }
+        },
+        "captureResponder": true,
+        "postDecisionBehavior": "showOutcome",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "0e095bed-afd4-4322-9184-6d0c94c0a5f9",
+      "name": "Slack - New Booking",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.5,
+      "position": [
+        760,
+        180
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "REPLACE_WITH_SLACK_CREDENTIAL_ID",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Bookings",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b07e705e-411a-43cc-b49c-7bd38fd3947d",
+      "name": "Google Sheets - Append Booking",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        760,
+        420
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// A Slack approval resumes this execution with data.approved.\n// Retrieve the original booking data so its documentId is never taken from Slack.\nconst booking = $items('Extract Booking Details', 0, 0)[0].json;\nconst approved = $json.data?.approved;\n\nif (typeof approved !== 'boolean') {\n  throw new Error('Slack did not return an approval decision.');\n}\n\nreturn [\n  {\n    json: {\n      ...booking,\n      status: approved ? 'confirmed' : 'cancelled',\n      decidedBy: $json.data?.responder?.name ?? $json.data?.responder?.id ?? 'Slack approver'\n    }\n  }\n];"
+      },
+      "id": "4ad144ca-a4a8-46c9-a3b5-7d9f697bd06b",
+      "name": "Map Slack Decision to Booking Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=REPLACE_WITH_STRAPI_API_URL/bookings/{{$json.bookingId}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\"data\":{\"status\":\"{{$json.status}}\"}}",
+        "options": {}
+      },
+      "id": "bd4ef1a7-ce03-4527-bd7a-e640ed84f41d",
+      "name": "Strapi - Update Booking Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1260,
+        180
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_STRAPI_API_TOKEN_CREDENTIAL_ID",
+          "name": "Strapi API token"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Strapi Booking Created": {
+      "main": [
+        [
+          {
+            "node": "Extract Booking Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Booking Details": {
+      "main": [
+        [
+          {
+            "node": "Slack - New Booking",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets - Append Booking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - New Booking": {
+      "main": [
+        [
+          {
+            "node": "Map Slack Decision to Booking Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map Slack Decision to Booking Status": {
+      "main": [
+        [
+          {
+            "node": "Strapi - Update Booking Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8e93aa3d-660c-4a91-b855-22f22f0756ec",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
