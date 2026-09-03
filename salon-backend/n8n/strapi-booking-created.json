@@ -33,7 +33,7 @@
     },
     {
       "parameters": {
-        "authentication": "accessToken",
+        "authentication": "oAuth2",
         "resource": "message",
         "operation": "sendAndWait",
         "select": "channel",
@@ -55,6 +55,8 @@
           }
         },
         "captureResponder": true,
+        "approvers": [],
+        "unauthorizedReplyText": "You are not authorized to confirm or cancel this booking.",
         "postDecisionBehavior": "showOutcome",
         "options": {
           "appendAttribution": false
@@ -63,15 +65,16 @@
       "id": "0e095bed-afd4-4322-9184-6d0c94c0a5f9",
       "name": "Slack - New Booking",
       "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.5,
+      "typeVersion": 2.7,
       "position": [
         760,
         180
       ],
+      "webhookId": "91d5570f-ec85-45ad-a7cf-760b15d3ed3f",
       "credentials": {
-        "slackApi": {
-          "id": "REPLACE_WITH_SLACK_CREDENTIAL_ID",
-          "name": "Slack account"
+        "slackOAuth2Api": {
+          "id": "REPLACE_WITH_SLACK_OAUTH2_CREDENTIAL_ID",
+          "name": "Slack OAuth2 - Salon Booking"
         }
       }
     },
@@ -114,7 +117,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// A Slack approval resumes this execution with data.approved.\n// Retrieve the original booking data so its documentId is never taken from Slack.\nconst booking = $items('Extract Booking Details', 0, 0)[0].json;\nconst approved = $json.data?.approved;\n\nif (typeof approved !== 'boolean') {\n  throw new Error('Slack did not return an approval decision.');\n}\n\nreturn [\n  {\n    json: {\n      ...booking,\n      status: approved ? 'confirmed' : 'cancelled',\n      decidedBy: $json.data?.responder?.name ?? $json.data?.responder?.id ?? 'Slack approver'\n    }\n  }\n];"
+        "jsCode": "// A Slack approval resumes this execution with data.approved.\n// Read the original booking and the single Slack response explicitly.\nconst booking = $('Extract Booking Details').first().json;\nconst slackResponse = $input.first().json;\nconst approved = slackResponse.data?.approved;\n\nif (typeof approved !== 'boolean') {\n  throw new Error('Slack did not return an approval decision.');\n}\n\nreturn [\n  {\n    json: {\n      ...booking,\n      status: approved ? 'confirmed' : 'cancelled',\n      decidedBy:\n        slackResponse.data?.responder?.name ??\n        slackResponse.data?.responder?.id ??\n        'Slack approver'\n    }\n  }\n];"
       },
       "id": "4ad144ca-a4a8-46c9-a3b5-7d9f697bd06b",
       "name": "Map Slack Decision to Booking Status",
@@ -128,13 +131,13 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=REPLACE_WITH_STRAPI_API_URL/bookings/{{$json.bookingId}}",
+        "url": "=REPLACE_WITH_PUBLIC_STRAPI_API_URL/bookings/{{$json.bookingId}}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={\"data\":{\"status\":\"{{$json.status}}\"}}",
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { data: { status: $json.status } } }}",
         "options": {}
       },
       "id": "bd4ef1a7-ce03-4527-bd7a-e640ed84f41d",

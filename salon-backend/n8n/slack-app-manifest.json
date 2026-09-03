@@ -1,0 +1,43 @@
+{
+  "display_information": {
+    "name": "Salon Booking Approvals",
+    "description": "Confirm or cancel Strapi salon bookings from Slack",
+    "background_color": "#2f855a"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "Salon Booking Approvals",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "https://n8n.example.com/rest/oauth2-credential/callback"
+    ],
+    "scopes": {
+      "bot": [
+        "channels:read",
+        "chat:write",
+        "groups:read",
+        "users:read",
+        "users:read.email"
+      ],
+      "user": [
+        "channels:read",
+        "chat:write",
+        "groups:read",
+        "users:read",
+        "users:read.email"
+      ]
+    }
+  },
+  "settings": {
+    "interactivity": {
+      "is_enabled": true,
+      "request_url": "https://n8n.example.com/webhook-waiting-slack"
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}

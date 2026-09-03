@@ -8,11 +8,15 @@ services:
     environment:
       - TZ=Asia/Dhaka
       - GENERIC_TIMEZONE=Asia/Dhaka
-      - N8N_HOST=localhost
+      - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - N8N_SECURE_COOKIE=false
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_EDITOR_BASE_URL=${N8N_PUBLIC_URL:-http://localhost:5678/}
+      - WEBHOOK_URL=${N8N_PUBLIC_URL:-http://localhost:5678/}
+      - N8N_SECURE_COOKIE=${N8N_SECURE_COOKIE:-false}
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - n8n_data:/home/node/.n8n
 
