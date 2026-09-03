@@ -1,4 +1,20 @@
-# Booking System Client
+# Booking System
+
+This repository contains the active Next.js frontend in `next-frontend` and the Strapi backend in `salon-backend`.
+
+The legacy React/Vite frontend has been removed. The n8n workflow remains unchanged.
+
+## Run locally
+
+```bash
+cd next-frontend
+npm run dev
+```
+
+```bash
+cd salon-backend
+npm run develop
+```
 
 A modern booking platform frontend built with React, TypeScript, Vite, and Tailwind CSS.
 
