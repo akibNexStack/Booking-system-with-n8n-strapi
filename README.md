@@ -150,7 +150,13 @@ Create a Strapi API token for n8n and keep it only in n8n credentials. It must n
 
 ### Strapi on Render
 
-Set the Render service root directory to `salon-backend`.
+This repository includes [`render.yaml`](render.yaml). In Render, create or
+reconfigure the service as a **Blueprint** from this repository. It uses
+`salon-backend` as the root directory and automatically deploys each push to
+`main`.
+
+If you keep the existing service rather than creating a Blueprint, set its
+root directory to `salon-backend`, enable **Auto-Deploy**, and use:
 
 ```text
 Build command: npm ci && npm run build
@@ -168,6 +174,7 @@ ADMIN_JWT_SECRET=<random-secret>
 TRANSFER_TOKEN_SALT=<random-secret>
 JWT_SECRET=<random-secret>
 ENCRYPTION_KEY=<random-secret>
+CLIENT_URL=https://next-frontend-gules.vercel.app
 DATABASE_CLIENT=postgres
 DATABASE_URL=<render-postgres-internal-url>
 DATABASE_SSL=false
@@ -177,7 +184,13 @@ Use Render Postgres for production. Local SQLite records do not automatically tr
 
 ### Next.js on Vercel
 
-Set the Vercel project root directory to `next-frontend` and add:
+Keep the Git repository root as this repository. In the Vercel project, set
+the project root directory to `next-frontend`, connect the `main` production
+branch, and enable automatic deployments. A commit made from this repository
+root will then deploy frontend changes to Vercel; no separate Git repository
+inside `next-frontend` is needed.
+
+Add:
 
 ```env
 NEXT_PUBLIC_STRAPI_API_URL=https://your-strapi-service.onrender.com/api

@@ -124,6 +124,7 @@ async function configureAuthenticatedPermissions(strapi: Core.Strapi) {
     'api::service.service.findOne',
     'api::staff.staff.find',
     'api::staff.staff.findOne',
+    'plugin::users-permissions.user.me',
   ];
   const existingPermissions = await strapi.db
     .query('plugin::users-permissions.permission')

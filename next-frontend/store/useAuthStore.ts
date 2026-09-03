@@ -5,8 +5,10 @@ import { strapiApi } from "@/lib/strapi";
 import type { StrapiUser } from "@/types/api";
 
 async function fetchCurrentUser() {
-  const { data } = await strapiApi.get<{ data: StrapiUser }>("/bookings/access");
-  return data.data;
+  const { data } = await strapiApi.get<StrapiUser>("/users/me", {
+    params: { populate: "role" },
+  });
+  return data;
 }
 
 type AuthState = {
@@ -44,11 +46,17 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local", { identifier, password });
       if (!data.jwt) throw new Error("Login response did not include a token.");
       window.localStorage.setItem("strapi_jwt", data.jwt);
-      const user = await fetchCurrentUser();
-      set({ user, isLoading: false });
     } catch {
       set({ user: null, isLoading: false, error: "Unable to sign in. Check your email and password." });
       throw new Error("Unable to sign in.");
+    }
+    try {
+      const user = await fetchCurrentUser();
+      set({ user, isLoading: false });
+    } catch {
+      window.localStorage.removeItem("strapi_jwt");
+      set({ user: null, isLoading: false, error: "Your account was accepted, but the booking service is unavailable. Please try again shortly." });
+      throw new Error("Unable to load the signed-in account.");
     }
   },
   register: async (name, email, password) => {
@@ -57,10 +65,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local/register", { username: name, email, password });
       if (!data.jwt) throw new Error("Registration response did not include a token.");
       window.localStorage.setItem("strapi_jwt", data.jwt);
-      set({ user: await fetchCurrentUser(), isLoading: false });
     } catch {
       set({ isLoading: false, error: "Unable to create your account. Please try a different email." });
       throw new Error("Unable to create your account.");
+    }
+    try {
+      set({ user: await fetchCurrentUser(), isLoading: false });
+    } catch {
+      window.localStorage.removeItem("strapi_jwt");
+      set({ user: null, isLoading: false, error: "Your account was created, but the booking service is unavailable. Please sign in again shortly." });
+      throw new Error("Unable to load the new account.");
     }
   },
   requestPasswordReset: async (email) => {
