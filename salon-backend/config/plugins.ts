@@ -26,10 +26,10 @@ const deniedTypes = [
 const config = ({ env }: Core.Config.Shared.ConfigParams): Core.Config.Plugin => ({
   'users-permissions': {
     config: {
-      jwtManagement: 'refresh',
-      sessions: {
-        httpOnly: true,
-      },
+      // The Next.js client stores and sends the JWT bearer token directly.
+      // Refresh-session mode requires a separate refresh/cookie lifecycle and
+      // was failing after valid password verification in production.
+      jwtManagement: 'legacy-support',
     },
   },
   upload: {
