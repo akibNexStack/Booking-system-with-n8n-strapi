@@ -10,7 +10,8 @@ import { useBookingsStore } from "@/store/useBookingsStore";
 
 const times = ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 const displayTime = (time: string) => new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(`2000-01-01T${time}:00`));
-const dates = Array.from({ length: 7 }, (_, offset) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + offset); return { value: date.toISOString().slice(0, 10), day: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date), number: date.getDate(), full: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(date) }; });
+const toLocalDateValue = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const dates = Array.from({ length: 7 }, (_, offset) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + offset); return { value: toLocalDateValue(date), day: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date), number: date.getDate(), full: new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(date) }; });
 const initials = (name: string) => name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
 
 function Stepper({ step }: { step: number }) {
@@ -23,13 +24,25 @@ export function BookingFlow({ serviceId }: { serviceId: string }) {
   const [submitted, setSubmitted] = useState(false);
   const { user, isLoading: isAuthLoading, hydrate } = useAuthStore();
   const flow = useBookingFlowStore();
+  const loadBookingFlow = useBookingFlowStore((state) => state.load);
+  const setContact = useBookingFlowStore((state) => state.setContact);
   const bookings = useBookingsStore();
   const selectedStaff = flow.staff.find((member) => member.id === flow.selectedStaffId);
   const selectedDate = dates.find((date) => date.value === flow.selectedDate);
   const contactComplete = Boolean(flow.customerName.trim() && flow.phone.trim() && flow.email.trim());
 
-  useEffect(() => { void flow.load(serviceId); void hydrate(); }, [serviceId, flow.load, hydrate]);
-  useEffect(() => { if (user) flow.setContact({ customerName: flow.customerName || user.username || "", email: flow.email || user.email || "" }); }, [user, flow]);
+  useEffect(() => { void loadBookingFlow(serviceId); void hydrate(); }, [serviceId, loadBookingFlow, hydrate]);
+  useEffect(() => {
+    if (!user) return;
+
+    // Do not depend on the whole Zustand store object here. setContact creates
+    // a new store snapshot; depending on `flow` made this effect run forever
+    // and could crash the browser tab.
+    const contact: { customerName?: string; email?: string } = {};
+    if (!flow.customerName && user.username) contact.customerName = user.username;
+    if (!flow.email && user.email) contact.email = user.email;
+    if (Object.keys(contact).length) setContact(contact);
+  }, [flow.customerName, flow.email, setContact, user]);
 
   async function submit() {
     if (!flow.service || !selectedStaff || !flow.selectedDate || !flow.selectedTime || !contactComplete) return;
