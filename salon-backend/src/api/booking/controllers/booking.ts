@@ -122,6 +122,7 @@ export default factories.createCoreController(
     async update(ctx) {
       const user = ctx.state.user;
       const controller = this as any;
+      const documentId = ctx.params.id;
 
       // Browser users authenticate as a Strapi user. Status changes are only
       // made by the existing n8n API-token request after a Slack decision.
@@ -136,7 +137,7 @@ export default factories.createCoreController(
       }
 
       const booking = await strapi.documents('api::booking.booking').findOne({
-        documentId: ctx.params.documentId,
+        documentId,
       });
 
       if (!booking) return ctx.notFound('Booking not found.');
@@ -145,7 +146,7 @@ export default factories.createCoreController(
       }
 
       const updatedBooking = await strapi.documents('api::booking.booking').update({
-        documentId: ctx.params.documentId,
+        documentId,
         data: { status } as any,
         populate: { service: true, staff: true },
       });

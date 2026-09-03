@@ -1,8 +1,16 @@
 "use client";
 
+import axios from "axios";
 import { create } from "zustand";
 import { strapiApi } from "@/lib/strapi";
 import type { StrapiUser } from "@/types/api";
+
+type StrapiErrorResponse = { error?: { message?: string } };
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (!axios.isAxiosError<StrapiErrorResponse>(error)) return fallback;
+  return error.response?.data?.error?.message || fallback;
+}
 
 async function fetchCurrentUser() {
   const { data } = await strapiApi.get<StrapiUser>("/users/me", {
@@ -43,11 +51,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (identifier, password) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local", { identifier, password });
+      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local", { identifier: identifier.trim().toLowerCase(), password });
       if (!data.jwt) throw new Error("Login response did not include a token.");
       window.localStorage.setItem("strapi_jwt", data.jwt);
-    } catch {
-      set({ user: null, isLoading: false, error: "Unable to sign in. Check your email and password." });
+    } catch (error) {
+      set({ user: null, isLoading: false, error: apiErrorMessage(error, "Unable to sign in. Check your email and password.") });
       throw new Error("Unable to sign in.");
     }
     try {
@@ -62,11 +70,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   register: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {
-      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local/register", { username: name, email, password });
+      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local/register", { username: name.trim(), email: email.trim().toLowerCase(), password });
       if (!data.jwt) throw new Error("Registration response did not include a token.");
       window.localStorage.setItem("strapi_jwt", data.jwt);
-    } catch {
-      set({ isLoading: false, error: "Unable to create your account. Please try a different email." });
+    } catch (error) {
+      set({ user: null, isLoading: false, error: apiErrorMessage(error, "Unable to create your account. Please try a different email.") });
       throw new Error("Unable to create your account.");
     }
     try {
