@@ -75,7 +75,6 @@ async function configurePublicPermissions(strapi: Core.Strapi) {
     'api::service.service.findOne',
     'api::staff.staff.find',
     'api::staff.staff.findOne',
-    'api::booking.booking.create',
   ]);
 
   const existingPermissions = await strapi.db
@@ -120,6 +119,7 @@ async function configureAuthenticatedPermissions(strapi: Core.Strapi) {
   const allowedActions = [
     'api::booking.booking.find',
     'api::booking.booking.create',
+    'api::booking.booking.access',
     'api::service.service.find',
     'api::service.service.findOne',
     'api::staff.staff.find',
@@ -148,6 +148,55 @@ async function configureAuthenticatedPermissions(strapi: Core.Strapi) {
       await strapi.db.query('plugin::users-permissions.permission').create({
         data: { action, role: authenticatedRole.id },
       });
+    }
+  }
+}
+
+async function ensureBookingRoles(strapi: Core.Strapi) {
+  const roleDefinitions = [
+    { name: 'Staff', description: 'View appointments assigned to this staff member.', type: 'staff' },
+    { name: 'Manager', description: 'View all salon bookings.', type: 'manager' },
+    { name: 'Admin', description: 'View all salon bookings and administer the application.', type: 'admin' },
+  ];
+
+  for (const role of roleDefinitions) {
+    const exists = await strapi.db
+      .query('plugin::users-permissions.role')
+      .findOne({ where: { type: role.type } });
+    if (!exists) {
+      await strapi.db.query('plugin::users-permissions.role').create({ data: role });
+    }
+  }
+}
+
+async function configureTeamRolePermissions(strapi: Core.Strapi) {
+  const actions = [
+    'api::booking.booking.find',
+    'api::booking.booking.access',
+    'api::service.service.find',
+    'api::service.service.findOne',
+    'api::staff.staff.find',
+    'api::staff.staff.findOne',
+    'plugin::users-permissions.user.me',
+  ];
+
+  for (const type of ['staff', 'manager', 'admin']) {
+    const role = await strapi.db
+      .query('plugin::users-permissions.role')
+      .findOne({ where: { type } });
+    if (!role) continue;
+
+    const permissions = await strapi.db
+      .query('plugin::users-permissions.permission')
+      .findMany({ where: { role: role.id } });
+    const currentActions = new Set(permissions.map((permission) => permission.action));
+
+    for (const action of actions) {
+      if (!currentActions.has(action)) {
+        await strapi.db.query('plugin::users-permissions.permission').create({
+          data: { action, role: role.id },
+        });
+      }
     }
   }
 }
@@ -188,7 +237,9 @@ export default {
 
     await seedByName(strapi, 'api::service.service', services);
     await seedByName(strapi, 'api::staff.staff', staffMembers);
+    await ensureBookingRoles(strapi);
     await configurePublicPermissions(strapi);
     await configureAuthenticatedPermissions(strapi);
+    await configureTeamRolePermissions(strapi);
   },
 };

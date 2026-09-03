@@ -1,0 +1,85 @@
+"use client";
+
+import { create } from "zustand";
+import { strapiApi } from "@/lib/strapi";
+import type { StrapiUser } from "@/types/api";
+
+async function fetchCurrentUser() {
+  const { data } = await strapiApi.get<{ data: StrapiUser }>("/bookings/access");
+  return data.data;
+}
+
+type AuthState = {
+  user: StrapiUser | null;
+  isLoading: boolean;
+  error: string | null;
+  hydrate: () => Promise<void>;
+  login: (identifier: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<void>;
+  startOAuth: (provider: "google" | "github") => void;
+  logout: () => void;
+};
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  isLoading: true,
+  error: null,
+  hydrate: async () => {
+    if (typeof window === "undefined" || !window.localStorage.getItem("strapi_jwt")) {
+      set({ user: null, isLoading: false, error: null });
+      return;
+    }
+    set({ isLoading: true, error: null });
+    try {
+      set({ user: await fetchCurrentUser(), isLoading: false });
+    } catch {
+      window.localStorage.removeItem("strapi_jwt");
+      set({ user: null, isLoading: false, error: "Your session has expired. Please sign in again." });
+    }
+  },
+  login: async (identifier, password) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local", { identifier, password });
+      if (!data.jwt) throw new Error("Login response did not include a token.");
+      window.localStorage.setItem("strapi_jwt", data.jwt);
+      const user = await fetchCurrentUser();
+      set({ user, isLoading: false });
+    } catch {
+      set({ user: null, isLoading: false, error: "Unable to sign in. Check your email and password." });
+      throw new Error("Unable to sign in.");
+    }
+  },
+  register: async (name, email, password) => {
+    set({ isLoading: true, error: null });
+    try {
+      const { data } = await strapiApi.post<{ jwt?: string; user?: StrapiUser }>("/auth/local/register", { username: name, email, password });
+      if (!data.jwt) throw new Error("Registration response did not include a token.");
+      window.localStorage.setItem("strapi_jwt", data.jwt);
+      set({ user: await fetchCurrentUser(), isLoading: false });
+    } catch {
+      set({ isLoading: false, error: "Unable to create your account. Please try a different email." });
+      throw new Error("Unable to create your account.");
+    }
+  },
+  requestPasswordReset: async (email) => {
+    set({ isLoading: true, error: null });
+    try {
+      await strapiApi.post("/auth/forgot-password", { email });
+      set({ isLoading: false });
+    } catch {
+      set({ isLoading: false, error: "We could not start a password reset. Please try again." });
+      throw new Error("Unable to request password reset.");
+    }
+  },
+  startOAuth: (provider) => {
+    if (typeof window === "undefined") return;
+    const baseUrl = strapiApi.defaults.baseURL?.replace(/\/$/, "");
+    if (baseUrl) window.location.assign(`${baseUrl}/connect/${provider}`);
+  },
+  logout: () => {
+    if (typeof window !== "undefined") window.localStorage.removeItem("strapi_jwt");
+    set({ user: null, isLoading: false, error: null });
+  },
+}));

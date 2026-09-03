@@ -1,0 +1,13 @@
+import Link from "next/link";
+import { ArrowRight, Sparkles } from "lucide-react";
+
+const stats = [["12K+", "Happy Clients"], ["48K+", "Bookings Made"], ["150+", "Top Professionals"], ["3.2K+", "5-Star Reviews"]];
+
+export function HeroSection() {
+  return <section className="relative overflow-hidden bg-slate-900 pb-20 pt-32 lg:pb-32 lg:pt-48">
+    <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-15" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600&q=80')" }} />
+    <div className="absolute inset-0 bg-gradient-to-b from-slate-900/40 via-slate-900/90 to-slate-900" />
+    <div className="pointer-events-none absolute inset-0 overflow-hidden"><div className="absolute left-1/2 top-0 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-rose-600/10 blur-[100px]" /><div className="absolute bottom-0 left-0 h-[400px] w-[500px] rounded-full bg-rose-700/10 blur-[90px]" /></div>
+    <div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8"><div className="mb-6 inline-flex items-center gap-2 rounded-full border border-rose-500/25 bg-rose-500/15 px-4 py-1.5 text-xs font-medium text-rose-300 backdrop-blur-sm"><Sparkles size={14} />New: Instant booking confirmations</div><h1 className="mb-6 text-4xl font-bold tracking-tight text-white md:text-6xl lg:text-7xl">Book Your Next<br className="hidden md:block" /> <span className="bg-gradient-to-r from-rose-400 via-rose-300 to-amber-300 bg-clip-text text-transparent">Appointment</span> in Seconds</h1><p className="mx-auto mb-10 max-w-2xl text-lg text-slate-400 md:text-xl">Discover top-rated professionals, view real-time availability, and book appointments with confidence. No calls, no waiting.</p><div className="mb-16 flex flex-col items-center justify-center gap-4 sm:flex-row"><Link href="/register" className="group flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-rose-600 to-rose-700 px-8 py-4 font-semibold text-white shadow-lg shadow-rose-600/20 transition-all hover:from-rose-500 hover:to-rose-600 sm:w-auto">Book Now <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" /></Link><Link href="/services" className="w-full rounded-xl border border-white/10 bg-white/5 px-8 py-4 font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/10 sm:w-auto">Explore Services</Link></div><div className="mx-auto grid max-w-3xl grid-cols-2 gap-6 md:grid-cols-4">{stats.map(([value, label]) => <div key={label}><p className="text-2xl font-bold text-white md:text-3xl">{value}</p><p className="mt-1 text-xs text-slate-500 md:text-sm">{label}</p></div>)}</div></div>
+  </section>;
+}
