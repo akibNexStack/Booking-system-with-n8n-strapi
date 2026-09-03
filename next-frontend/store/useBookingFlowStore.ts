@@ -37,7 +37,7 @@ export const useBookingFlowStore = create<BookingFlowState>((set) => ({
     try {
       const [serviceResponse, staffResponse] = await Promise.all([
         strapiApi.get<{ data: StrapiService }>(`/services/${serviceId}?populate=*`),
-        strapiApi.get<{ data?: StrapiStaff[] }>("/staff-members?populate=photo"),
+        strapiApi.get<{ data?: StrapiStaff[] }>("/staff?populate=photo"),
       ]);
       const baseUrl = strapiApi.defaults.baseURL ?? "";
       const rawService = serviceResponse.data.data;
